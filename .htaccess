@@ -1,0 +1,10 @@
+#Options +FollowSymlinks
+#RewriteEngine on
+
+#RewriteCond %{REQUEST_FILENAME} !-f
+#RewriteCond %{REQUEST_FILENAME} !-d
+#RewriteRule ^([en|es]+)/?([1-7]{1}|about+)?/?$ index.php?lang=$1&page=$2 [L,QSA]
+
+#RewriteRule ^$ /en/$1 [R,NC]
+
+#ErrorDocument 404 /index.php?error=true&lang=$1

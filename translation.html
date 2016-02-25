@@ -1,0 +1,70 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Translation</title>
+</head>
+<script src="jquery-1.11.1.min.js"></script>
+<script src="jquery-ui-1.11.1/jquery-ui.js"></script>
+<script type="text/javascript">
+$(function(){
+	var centerX = 200, centerY = 200; /*con respecto a la posición initicial del slider*/
+	var rx = 200, ry = 100;
+	var slider = $('#slider');
+	var width = slider.outerWidth()/2,
+			height = slider.outerHeight()/2;
+	var initX = slider.offset().left, initY = slider.offset().top;
+	centerX += initX, centerY +=initY;
+	slider.css({left:centerX+rx-width, top:centerY-height})
+	slider.draggable({drag:function(event,ui){
+		var x =  (ui.position.left+width) - centerX;
+		var y =  (ui.position.top+height) - centerY;
+		var fx = rx/ry;
+		var alpha = Math.atan((y*fx)/x);
+		
+		var alpha = Math.atan2((y*fx),x);
+		/*if((ui.position.left+width) < centerX)
+			alpha = Math.PI - alpha;
+		else{
+			if((ui.position.top+height) < centerY)
+				alpha *= -1
+			else
+				alpha = (Math.PI *2) -alpha;
+		}*/
+			
+		var degs = alpha * (180/Math.PI);
+		
+		var pos = parametric (centerX, centerY, rx, ry, -alpha);
+
+		var kappa = 23.4 *(Math.PI/180);
+		var relX = kappa * (( rx-(pos.x-initX) ) / rx);
+		
+		$('#debug').val(relX);
+		
+		$('#earth').css({transform:'rotate('+relX+'rad)'});
+		
+		ui.position.left = pos.x-width;
+		ui.position.top = pos.y-height;
+	}})
+	
+})
+
+function parametric(cx, cy, rx, ry, a){
+		a = (Math.PI/2)+a;
+		return {x: cx + rx * Math.sin(a),
+				y: cy + ry * Math.cos(a)}
+	}
+</script>
+<style type="text/css">
+	html, body{margin:0;}
+	#slider{width:60px; height:60px; background:teal; top:100px; left:100px; position:absolute;}
+	#mark{width:2px; height:2px; background:#000; position:absolute; top:300px; left:300px;}
+	#earth{transform:rotate(-23.4deg); outline:solid red 1px; width:200px;}
+</style>
+<body>
+	<div id="slider"></div>
+    <div id="mark"></div>
+    <div id="earth"><p>Esto es la Tierra</p><img src="img/cassini.img" alt="cassini"></div>
+    <input type="text" id="debug">
+</body>
+</html>

@@ -1,0 +1,374 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Prueba DnD</title>
+<!-- script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+<script src="//ajax.googleapis.com/ajax/libs/jqueryui/1.11.1/jquery-ui.min.js"></script -->
+<script src="jquery-1.11.1.min.js"></script>
+<script src="jquery-ui-1.11.1/jquery-ui.js"></script>
+<script type="text/javascript">
+var kappa = axial_tilt = -23.4 *(Math.PI/180), axis, Aw, Ah, Nw, Nh, alpha, north, nX, nY, oX, oY, earth, droppable;
+var hit = false;
+	$(function(){
+		droppable = $('#earth_group');
+		var pin = $('#pin');
+		var width = $('#canvas').width();
+		var canvas = $('#canvas').get(0);
+        earth = $('#tierra');
+        north = $('#north');
+        axis = $('#axis');
+        oX = droppable.offset().left, oY = droppable.offset().top;
+        Aw = axis.width()/2, Ah = axis.height()/2,
+            Nw = north.width()/2, Nh = north.height()/2;
+		var aCoords;
+		var oTop = pin.offset().top, oLeft = pin.offset().left, dTop = 0, dLeft = 0;
+		var clone = $('<img id="clone"/>').insertBefore(pin).css({top:oTop, left:oLeft}).attr({src:pin.attr('src')});
+        axis.css({'transform':'rotateZ('+(-axial_tilt)+'rad)'});
+        earth.css({'transform':'rotateZ('+(-axial_tilt)+'rad)'});
+        pin.css({opacity:0});
+		t = 0;
+		canvas.width = canvas.height = width;
+        var oN = rotatePoint(north.position().left, north.position().top, canvas.width/2, canvas.height/2, -axial_tilt);
+        
+		if(window.HTMLCanvasElement){
+			var context = canvas.getContext('2d');
+			initClip(canvas, context);
+		}else{
+            ieTilt(axis, -axial_tilt, Aw, Ah);
+            ieTilt(north, -axial_tilt, Nw, Nh);
+        }
+        
+        north.css({left:oN.x-(Nw), top:oN.y-(Nh)});
+        nX = oN.x; nY = oN.y
+        
+        north.css({'transform':'rotateZ('+(-axial_tilt)+'rad)'});
+        
+		translation($('#miniTierra'), 200, 42, 200, 42, context, canvas, droppable, pin);
+		$.fn.orbit = function(xcenter, ycenter, Rx, Ry, offset, rst) {
+			t = rst ? offset : t;
+			
+			el = this;
+			//var t =0, el = this;
+			var theta = axial_tilt;
+			theta = (Math.PI-theta); ///Rota en sentido contrario a las manecillas del reloj
+			xcenter = xcenter-this.outerWidth()/2;
+			ycenter = ycenter-this.outerHeight();
+			/*if(!rst)
+				clearInterval(int);
+			int = setInterval(function(){
+				t += 0.01;
+			}, 10)*/
+			step();
+			function step(){
+				t+=0.035;//<---- El signo controla el sentido de la rotación
+				var x = droppable.offset().left + xcenter + Rx * Math.cos(t) * Math.cos(theta) - Ry * Math.sin(t) * Math.sin(theta);
+				var y = droppable.offset().top + ycenter + Rx * Math.cos(t) * Math.sin(theta) + Ry * Math.sin(t) * Math.cos(theta);
+					if(typeof oldX !== 'undefined')
+						var d = (x-oldX)/Math.abs(x-oldX);
+					if(typeof oldD !== 'undefined')
+						if(d != oldD)
+							clone.css({opacity:d<0?0.5:1});
+				setTimeout(function(){
+					oldX = x
+					oldD = d;
+				}, 400)
+				clone.css({top:pin.offset().top, left:pin.offset().left});
+				el.stop().animate({
+					top: y,
+					left: x,
+					}, 1, function() {
+        				step();
+				});
+			}
+		}
+		
+		$('#pin').on({'mousedown':function(){clone.css({opacity:1}); pin.stop();}}).draggable({revert:function(event, ui){
+				$(this).data("uiDraggable").originalPosition = {
+                	top : dTop,
+                	left : dLeft
+            	};
+				clone.animate({top:oTop, left:oLeft},100);
+					return !hit;
+			}, revertDuration:'100',
+			drag:function(event, ui){
+				clone.css({top:ui.offset.top, left:ui.offset.left});
+				
+				var offset = ui.offset.left + (pin.outerWidth()/2);
+				//context.clearRect(0, 0, canvas.width, canvas.height);
+				myX = ui.offset.left + (pin.outerWidth()/2);
+         		myY = ui.offset.top + pin.outerHeight();
+				var myR = droppable.outerWidth() / 2;
+         		var myCX = droppable.offset().left + myR;
+         		var myCY = droppable.offset().top + myR;
+				hit = checkIntersection(myX, myY, myCX, myCY, myR);
+				if(hit){
+                    init_tilt = axial_tilt;
+					aCoords = drawLine(myX, myY, context, canvas);
+                }else if(window.HTMLCanvasElement)
+					context.clearRect(0, 0, canvas.width, canvas.height);
+				
+			},stop:function(event,ui){
+				if(hit){
+					dTop = oTop;
+					dLeft = oLeft;
+					//$('#marca2').css({left:myX, top:myY})/*<-------------------------------------------------------*/
+					rotate(aCoords, droppable, true);
+				}
+			}
+		});
+		droppable.droppable();
+	})
+	function checkIntersection(aX, aY, aCX, aCY, aR) {
+		return (Math.pow(aX - aCX, 2) + Math.pow(aY - aCY, 2) < Math.pow(aR, 2));
+	}
+	
+	function rotate(aCoords, droppable, rst){
+		$('#pin').css({position:'absolute'});
+		var oX = droppable.offset().left, oY = droppable.offset().top;
+					
+		var alpha = axial_tilt;
+		var co = (Math.tan(alpha) * canvas.height/2);
+
+		var coords = lineIntersect(aCoords.x1, aCoords.y1, aCoords.x2, aCoords.y2, canvas.width/2 - co, 0, co + canvas.width/2 , canvas.height);
+		var north = parametric(canvas.width/2, canvas.height/2, canvas.width/2, canvas.height/2, Math.PI+alpha);
+		var d = distance(north.x, north.y, coords.x, coords.y);
+		var c = chord(d); /// <-------------------- La Y está mal...
+					
+		var omega = coords.y + oY <= (canvas.height/2) + oY ? 
+					(Math.atan((c/2)/( (canvas.width/2) -d ))+alpha) :
+					Math.PI-( (Math.atan((c/2)/( d - (canvas.width/2) ))) -alpha);
+					
+					
+		var z = parametric(canvas.width/2, canvas.height/2, canvas.width/2, canvas.height/2, Math.PI+omega);
+		var offset_d = distance (z.x + oX, z.y + oY, myX, myY);
+		var offset = offset_d > 0 ? (offset_d * Math.PI) / c : 0;
+					
+		//$('#marca').css({left:(canvas.width/2 + oX)+'px', top:(canvas.height/2 + oY)+'px'});
+		/*$('<div id="marca2"/>').appendTo('body');
+		$('#marca2').css({left:(z.x + oX)+'px', top:(z.y + oY)+'px'});*/
+					
+		$('#pin').orbit(coords.x,coords.y,c/2,0, offset, rst);
+	}
+	
+	function initClip(canvas, context){
+		context.save();
+		context.beginPath();
+		context.arc(canvas.width/2, canvas.height/2, canvas.width/2, 0, 2 * Math.PI, false);
+		context.clip();
+	}
+	function drawLine(X, Y, context, canvas){
+		var oX =  droppable.offset().left, oY = droppable.offset().top;
+		var X = X-oX, Y = Y-oY;
+		var o = axial_tilt;
+		var y1 = Y+(Math.tan(o)*X), y2 = Y-(Math.tan(o)*(canvas.width-X));
+		if(window.HTMLCanvasElement){
+			context.clearRect(0, 0, canvas.width, canvas.height);
+			context.beginPath();
+			context.moveTo(0, y1)
+			context.lineTo(canvas.width, y2);
+			context.lineWidth = 6;
+      		context.strokeStyle = 'salmon';
+			context.stroke();
+		}
+		var aCoords = {x1:0, y1:y1, x2:canvas.width, y2:y2};
+		return aCoords;
+	}
+	
+	function chord(y){
+		var radius = $('#tierra').outerHeight()/2;
+		var d = Math.abs(radius-y);
+		/*console.log(d);
+		$('#regla').css({width:d+'px'});*/
+		return 2*Math.sqrt(Math.pow(radius,2)-Math.pow(d,2));
+	}
+	
+	function rotatePoint(px, py, cx, cy, a){
+    	var cosA = Math.cos(a);
+    	var sinA = Math.sin(a);
+    	return {
+        	x : (cosA * (px - cx) - sinA * (py - cy) + cx),
+        	y :(sinA * (px - cx) + cosA * (py - cy) + cy)
+    	};
+	}
+	
+	function lineIntersect(x1,y1,x2,y2, x3,y3,x4,y4) {
+		var x=((x1*y2-y1*x2)*(x3-x4)-(x1-x2)*(x3*y4-y3*x4))/((x1-x2)*(y3-y4)-(y1-y2)*(x3-x4));
+		var y=((x1*y2-y1*x2)*(y3-y4)-(y1-y2)*(x3*y4-y3*x4))/((x1-x2)*(y3-y4)-(y1-y2)*(x3-x4));
+		var coords = {x:x, y:y}
+		return coords;
+	}
+	
+	function parametric(cx, cy, rx, ry, a){
+		return {x: cx + rx * Math.sin(a),
+				y: cy + ry * Math.cos(a)}
+	}
+	
+	function distance(x1, y1, x2, y2){
+		return Math.sqrt(Math.pow(x2-x1,2) + Math.pow(y2-y1,2));
+	}
+	
+	function translation(slider, centerX, centerY, rx, ry, context, canvas, droppable, pin, Mx, My){
+		var width = slider.outerWidth()/2,
+			height = slider.outerHeight()/2;
+		var initX = slider.offset().left, initY = slider.offset().top;
+		centerX += width, centerY +=height;
+	
+		slider.css({left:-width, top:centerY-(height*2)})
+		slider.draggable({drag:function(event,ui){
+			var x =  (ui.position.left+(width*2)) - centerX;
+			var y =  (ui.position.top+(height*2)) - centerY;
+			var fx = rx/ry;
+		
+			alpha = Math.atan2((y*fx),x);
+			
+			var degs = alpha * (180/Math.PI);
+
+			var pos = parametric (centerX, centerY, rx, ry, (Math.PI/2)-alpha);
+
+			axial_tilt = kappa * (( rx-(pos.x-width) ) / rx);
+			
+			//$('#debug').val( degs );
+			
+            if(typeof init_tilt ==='undefined')
+                init_tilt = kappa;
+			//$('#earth').css({transform:'rotate('+relX+'rad)'});
+			ui.position.left = pos.x-(width*2);
+			ui.position.top = pos.y-(height*2);
+			//aCoords = drawLine(myX, myY, context, canvas);
+            
+            mini = $(this);
+            
+            //axis.css({'transform':'rotateY('+(Math.PI-alpha)+'rad)'}); /*<------------ rotación en Y, no me convence*/
+            axis.css({'transform':'rotateZ('+(-axial_tilt)+'rad)'});
+            earth.css({'transform':'rotateZ('+(-axial_tilt)+'rad)'});
+            
+            if(!window.HTMLCanvasElement){
+                ieTilt(north, -axial_tilt, Nw, Nh);
+                ieTilt(axis, -axial_tilt, Aw, Ah);
+            }
+            
+            var newN = rotatePoint(nX, nY, canvas.width/2, canvas.height/2, kappa-axial_tilt);
+            var nWidth = (Math.abs(axial_tilt) * (Nw*2) )/Math.abs(kappa);
+            
+            $('#debug').val(nWidth);
+            
+            north.css({left:newN.x-(nWidth/2), top:newN.y-Nh, width:nWidth});
+            north.css({'transform':'rotateZ('+(-axial_tilt)+'rad)'});
+            
+			if(typeof myX !=='undefined' && hit){
+                
+				var newP = rotatePoint(myX, myY, (canvas.width/2)+oX, (canvas.height/2)+oY, init_tilt-axial_tilt);
+                
+				//$('#marca2').css({left:newP.x, top:newP.y, background:'cyan'})/*<-------------------------------------------------------*/
+				aCoords = drawLine(newP.x, newP.y, context, canvas);
+				rotate(aCoords, droppable, false);
+			}
+		}, stop:function(event,ui){
+            var margin = 20*(Math.PI/180);
+            
+            if( Math.abs( bimodulo(alpha, Math.PI/2) ) < margin){
+                
+                alpha = alpha + (bimodulo(alpha, Math.PI/2) * alpha/Math.abs(alpha));
+                pos = parametric (centerX, centerY, rx, ry, (Math.PI/2)-alpha);
+                
+                axial_tilt = kappa * (( rx-(pos.x-width) ) / rx);
+                
+                axis.css({'transform':'rotateZ('+(-axial_tilt)+'rad)'});
+                earth.css({'transform':'rotateZ('+(-axial_tilt)+'rad)'});
+                
+                if(!window.HTMLCanvasElement){
+                    ieTilt(north, -axial_tilt, Nw, Nh);
+                    ieTilt(axis, -axial_tilt, Aw, Ah);
+                }
+                
+                var newN = rotatePoint(nX, nY, canvas.width/2, canvas.height/2, kappa-axial_tilt);
+                var nWidth = (Math.abs(axial_tilt) * (Nw*2) )/Math.abs(kappa);
+                
+                north.css({left:newN.x-(nWidth/2), top:newN.y-Nh, width:nWidth});
+                north.css({'transform':'rotateZ('+(-axial_tilt)+'rad)'});
+                
+                mini.css({left:pos.x-(width * 2), top: pos.y- (height * 2)});
+                
+                if(typeof myX !=='undefined' && hit){
+                
+				    var oX = droppable.offset().left, oY = droppable.offset().top;
+                
+				    var newP = rotatePoint(myX, myY, (canvas.width/2)+oX, (canvas.height/2)+oY, init_tilt-axial_tilt);
+            
+				    aCoords = drawLine(newP.x, newP.y, context, canvas);
+				    rotate(aCoords, droppable, false);
+                }
+            }
+        }})
+	/*El signo del angulo default (23.4) define hacia a donde está inclinada la tierra al inicio, el signo de kappa cambia la posición con respecto a la traslación */
+	}
+    function ieTilt(el, angle, w, h){
+       var c= Math.cos(angle), s = Math.sin(angle);
+        var signo = angle/Math.abs(angle)
+        var Dx = -(w*c)+ (h*s) + w;
+        var Dy = -(w*s) - (h*c) + h;
+        
+        el.attr({'style':'top:'+Dy+'px; left:'+(Dx*-signo)+'px;-ms-filter: "progid:DXImageTransform.Microsoft.Matrix(SizingMethod=\'auto expand\', M11='+Math.cos(angle)+', M12='+Math.sin(-angle)+', M21='+Math.sin(angle)+', M22='+Math.cos(angle)+');"'});
+    }
+    
+    function bimodulo(num, multiple) {
+        var mod = Math.abs(num%multiple);
+        if (mod <= (multiple/2)) { 
+            return -mod;
+        } else {
+            return multiple-mod;
+        }
+    }
+    
+    function rectArea(x,y,o){
+        return {w: Math.abs(x * Math.sin(o)) + Math.abs(y * Math.cos(o)),
+                h: Math.abs(x * Math.cos(o)) + Math.abs(y * Math.sin(o))};
+    }
+</script>
+<style type="text/css">
+	body, html{width:100%; height:100%;}
+    body{margin:0; background:url(../img/cosmos.jpg) no-repeat; background-size:cover; color:#FFF; float:left; font-family:'Garamond W01';}
+	#pin, #clone{width:60px; height:60px; cursor:pointer;} #pin{z-index:1;}
+	#clone{position:absolute;}
+    #earth_group{position:relative; display:inline-block; margin:100px 0 0 100px; width:480px; height:480px;}
+    
+	#canvas, #umbra, #axis, #north{position:absolute;}
+	#marca, #marca2{width:2px; height:2px; background:black; position:absolute;}
+	#regla{width:0; height:2px; background:red;}
+    #axis, #tierra, #canvas, #umbra{top:0; left:0;}
+	#tierra, #canvas, #umbra{width:480px; height:480px;}
+    #north{width:16px; height:16px; left:240px; top:-23px}
+    
+    #orbit{width:400px; height:84px; padding:40px; background: url(img/orbit.png) no-repeat center center; position:relative; display:inline-block;}
+	#miniTierra{width:74px; height:74px; position:relative; cursor: pointer;}
+    #sun{position:absolute; left:40px; top:30px; pointer-events: none;}
+	#umbra{pointer-events:none; z-index:1;}
+    #axis{margin:-30px 0 0 239px; z-index: -1;}
+    
+    #debug{position:absolute; top:20px; right:20px; width:800px;}
+    
+    #earth_group, #orbit{vertical-align: middle;}
+    #orbit{margin:40px;}
+    
+</style>
+</head>
+
+<body>
+    <div id="earth_group">
+        <img id="tierra"  src="img/earth.gif" alt="Tierra">
+        <img id="axis" src="img/axis.png" alt="Eje terrestre">
+        <canvas id="canvas"></canvas>
+        <img id="umbra" src="img/umbra.png" alt="Sombra de la Tierra">
+        <img id="north" src="img/north.png" alt="Polo Norte">
+    </div>
+    <div id="orbit">
+        <img id="miniTierra" alt="Órbita terrestre" src="img/mini-earth.png">
+        <img id="sun" alt="El Sol" src="img/sun.png">
+    </div>
+    <img id="pin" alt="Pin" src="img/pin.png">
+    <!-- div id="marca2"></div>
+    <input type="text" id="debug" -->
+    
+</body>
+</html>

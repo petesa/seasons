@@ -1,0 +1,178 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Prueba DnD</title>
+<!-- script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+<script src="//ajax.googleapis.com/ajax/libs/jqueryui/1.11.1/jquery-ui.min.js"></script -->
+<script src="jquery-1.11.1.min.js"></script>
+<script src="jquery-ui-1.11.1/jquery-ui.js"></script>
+<script type="text/javascript">
+	$(function(){
+		var hit = false;
+		var droppable = $('#tierra');
+		var pin = $('#pin');
+		var width = $('canvas').width();
+		var canvas = $('canvas').get(0);
+		var aCoords;
+		canvas.width = canvas.height = width;
+		var context = canvas.getContext('2d');
+		initClip(canvas, context);
+		$.fn.orbit = function(xcenter, ycenter, Rx, Ry, theta, offset) {
+			//var t=offset>0?(offset*Math.PI)/(Rx*2):0,el = this;
+			var t =0, el = this;
+			theta = typeof theta ==='undefined'?0:theta;
+			theta = (180-theta) * (Math.PI/180); ///Rota en sentido contrario a las manecillas del reloj
+			xcenter = xcenter-this.outerWidth()/2;
+			ycenter = ycenter-this.outerHeight();
+			step(t);
+			function step(t){
+				t += 0.01;
+				
+				var x = xcenter + Rx * Math.cos(t) * Math.cos(theta) - Ry * Math.sin(t) * Math.sin(theta);
+				var y = ycenter + Rx * Math.cos(t) * Math.sin(theta) + Ry * Math.sin(t) * Math.cos(theta);
+				if(typeof oldX !== 'undefined')
+					var d = (x-oldX)/Math.abs(x-oldX);
+				if(typeof oldD !== 'undefined')
+					if(d != oldD)
+						pin.css({opacity:d<0?0.5:1})
+				el.animate({
+					top: y,
+					left: x,
+					}, 1, function() {
+						oldX = x
+						oldD = d;
+        				step(t);
+				});
+			}
+		}
+		
+		$('#pin').draggable({revert:function(event, ui){
+				$(this).data("uiDraggable").originalPosition = {
+                	top : 0,
+                	left : 0
+            	};
+					return !hit;
+			}, revertDuration:'100',
+			drag:function(event, ui){
+				var offset = ui.offset.left + (pin.outerWidth()/2);
+				context.clearRect(0, 0, canvas.width, canvas.height);
+				myX = ui.offset.left + (pin.outerWidth()/2);
+         		myY = ui.offset.top + pin.outerHeight();
+				var myR = droppable.outerWidth() / 2;
+         		var myCX = droppable.offset().left + myR;
+         		var myCY = droppable.offset().top + myR;
+				hit = checkIntersection(myX, myY, myCX, myCY, myR);
+				if(hit)
+					aCoords = drawLine(myX, myY, context, canvas);
+				else
+					context.clearRect(0, 0, canvas.width, canvas.height);
+			},stop:function(event,ui){
+				if(hit){
+					$('#pin').css({position:'absolute'});
+					var alpha = 23.4*(Math.PI/180);
+					
+					var co = (Math.tan(alpha) * canvas.height/2);
+					
+					var coords = lineIntersect(aCoords.x1, aCoords.y1, aCoords.x2, aCoords.y2, canvas.width/2 - co, 0, co + canvas.width/2 , canvas.height);
+					
+					//var H = coords.y/Math.cos(alpha);
+					
+					var north = parametric(canvas.width/2, canvas.height/2, canvas.width/2, alpha);
+					var d = distance(north.x, north.y, coords.x, coords.y);
+					var c = chord(d)/2; /// <-------------------- La Y está mal...
+					
+					$('<div id="marca"/>').appendTo('body');
+					$('#marca').css({left:north.x, top:north.y})
+					
+					console.log(d);
+					
+					$('#regla').css({width:d+'px'})
+					$('#pin').orbit(coords.x,coords.y,c,0, 23.4, myX);
+					
+				}
+			}
+		});
+		$('#tierra').droppable();
+	})
+	function checkIntersection(aX, aY, aCX, aCY, aR) {
+		return (Math.pow(aX - aCX, 2) + Math.pow(aY - aCY, 2) < Math.pow(aR, 2));
+	}
+	
+	function initClip(canvas, context){
+		context.save();
+		context.beginPath();
+		context.arc(canvas.width/2, canvas.height/2, canvas.width/2, 0, 2 * Math.PI, false);
+		context.clip();
+	}
+	function drawLine(X, Y, context, canvas){
+		var o = 23.4 * (Math.PI/180);
+		context.clearRect(0, 0, canvas.width, canvas.height);
+		context.beginPath();
+		var y1 = Y+(Math.tan(o)*X), y2 = Y-(Math.tan(o)*(canvas.width-X));
+		context.moveTo(0, y1)
+		context.lineTo(canvas.width, y2);
+		context.lineWidth = 6;
+      	context.strokeStyle = 'salmon';
+		context.stroke();
+		var aCoords = {x1:0, y1:y1, x2:canvas.width, y2:y2};
+		return aCoords;
+	}
+	
+	function chord(y){
+		var radius = $('#tierra').outerHeight()/2;
+		var d = Math.abs(radius-y);
+		/*console.log(d);
+		$('#regla').css({width:d+'px'});*/
+		return 2*Math.sqrt(Math.pow(radius,2)-Math.pow(d,2));
+	}
+	
+	function rotatePoint(cx, cy, angle, px, py){
+		var s = Math.sin(angle);
+		var c = Math.cos(angle);
+
+		px -= cx;
+		py -= cy;
+
+		var xnew = px * c - py * s;
+		var ynew = px * s + py * c;
+
+		px = xnew + cx;
+		py = ynew + cy;
+		return px;
+	}
+	
+	function lineIntersect(x1,y1,x2,y2, x3,y3,x4,y4) {
+		var x=((x1*y2-y1*x2)*(x3-x4)-(x1-x2)*(x3*y4-y3*x4))/((x1-x2)*(y3-y4)-(y1-y2)*(x3-x4));
+		var y=((x1*y2-y1*x2)*(y3-y4)-(y1-y2)*(x3*y4-y3*x4))/((x1-x2)*(y3-y4)-(y1-y2)*(x3-x4));
+		var coords = {x:x, y:y}
+		return coords;
+	}
+	
+	function parametric(cx, cy, r, a){
+		a = 180-a;
+		return {x: cx + r * Math.sin(a),
+				y: cy + r * Math.cos(a)}
+	}
+	
+	function distance(x1, y1, x2, y2){
+		return Math.sqrt(Math.pow(x2-x1,2) + Math.pow(y2-y1,2));
+	}
+</script>
+<style type="text/css">
+	body{margin:0;}
+	#pin{width:60px; height:60px; background:salmon; cursor:pointer;}
+	canvas{width:480px; height:480px; position:absolute;}
+	#marca{width:2px; height:2px; background:yellow; position:absolute;}
+	#regla{width:0; height:2px; background:red;}
+	
+</style>
+</head>
+
+<body>
+	<canvas></canvas>
+	<img id="tierra"  src="tierra.png" alt="Tierra">
+    <img id="pin" alt="Pin">
+    <div id="regla"></div>
+</body>
+</html>
